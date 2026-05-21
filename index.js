@@ -1,3 +1,5 @@
+const fetch = (...args) =>
+  import("node-fetch").then(({ default: fetch }) => fetch(...args));
 require("dotenv").config();
 
 const express = require("express");
@@ -180,7 +182,13 @@ bot.action("support", async (ctx) => {
 // =========================
 
 bot.action("trial", async (ctx) => {
+
   await ctx.answerCbQuery();
+
+  userSelections[ctx.from.id] = {
+    waitingDomain: true,
+    period: "trial"
+  };
 
   await ctx.reply(
 `🧪 Для получения trial введите ваш домен amoCRM
@@ -188,6 +196,7 @@ bot.action("trial", async (ctx) => {
 Введите в формате:
 company.amocrm.ru`
   );
+
 });
 
 // =========================
@@ -209,26 +218,25 @@ bot.on("text", async (ctx) => {
 
     const supportMessage = ctx.message.text;
 
-    // ВСТАВЬ СВОЙ TELEGRAM ID
-    const ADMIN_ID = 123456789;
+    await fetch("https://hook.eu1.make.com/movsz2g5rx0vmel6l684xopfto7aatbl", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    telegram_id: ctx.from.id,
+    username: ctx.from.username,
+    first_name: ctx.from.first_name,
+    message: supportMessage,
+    date: new Date().toISOString()
+  })
+});
 
-    await bot.telegram.sendMessage(
-      ADMIN_ID,
+userSelections[ctx.from.id].waitingSupport = false;
 
-`💬 Новое сообщение в поддержку
-
-👤 ${ctx.from.first_name}
-🆔 ${ctx.from.id}
-
-✉️ Сообщение:
-${supportMessage}`
-    );
-
-    userSelections[ctx.from.id].waitingSupport = false;
-
-    return ctx.reply(
+return ctx.reply(
 `✅ Сообщение отправлено в поддержку`
-    );
+);
   }
 
   // =========================
