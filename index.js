@@ -214,30 +214,46 @@ bot.on("text", async (ctx) => {
   // SUPPORT
   // =========================
 
-  if (userData.waitingSupport) {
+if (userData.waitingSupport) {
 
-    const supportMessage = ctx.message.text;
+  const supportMessage = ctx.message.text;
 
-    await fetch("https://hook.eu1.make.com/movsz2g5rx0vmel6l684xopfto7aatbl", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    telegram_id: ctx.from.id,
-    username: ctx.from.username,
-    first_name: ctx.from.first_name,
-    message: supportMessage,
-    date: new Date().toISOString()
-  })
-});
+  try {
 
-userSelections[ctx.from.id].waitingSupport = false;
+    const response = await fetch(
+      "https://hook.eu1.make.com/movsz2g5rx0vmel6l684xopfto7aatbl",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          telegram_id: ctx.from.id,
+          username: ctx.from.username,
+          first_name: ctx.from.first_name,
+          message: supportMessage,
+          date: new Date().toISOString()
+        })
+      }
+    );
 
-return ctx.reply(
+    console.log("MAKE STATUS:", response.status);
+
+    userSelections[ctx.from.id].waitingSupport = false;
+
+    return ctx.reply(
 `✅ Сообщение отправлено в поддержку`
-);
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+    return ctx.reply(
+`❌ Ошибка отправки в поддержку`
+    );
   }
+}
 
   // =========================
   // DOMAIN INPUT
@@ -247,7 +263,7 @@ return ctx.reply(
 
     const domain = ctx.message.text.trim();
 
-    const domainRegex = /^[a-zA-Z0-9-]+\\.amocrm\\.ru$/;
+    const domainRegex = /^[a-zA-Z0-9-]+\.amocrm\.ru$/;
 
     if (!domainRegex.test(domain)) {
 
