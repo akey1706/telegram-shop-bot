@@ -1,5 +1,6 @@
 const fetch = (...args) =>
   import("node-fetch").then(({ default: fetch }) => fetch(...args));
+
 require("dotenv").config();
 
 const express = require("express");
@@ -21,6 +22,8 @@ const SUPPORT_URL = "https://t.me/sumbylist_support_bot";
 const BANNER_URL =
   "https://raw.githubusercontent.com/akey1706/sum_by_list_image/main/tg_banner.png";
 
+const ADMIN_ID = 1387488821;
+
 // Ссылки на оплату
 const PAYMENT_LINKS = {
   "1_month": "https://your-site.com/pay-1-month",
@@ -39,12 +42,11 @@ const userSelections = {};
 // =========================
 
 bot.start(async (ctx) => {
+
   const caption = `
 🔥 <b>Сумма по списку</b>
 
-Виджет «Сумма по списку» автоматически считает сумму по любым числовым полям сделок и отображает итог прямо в заголовке столбца.
-
-Работает с фильтрами — меняете фильтр, сумма пересчитывается мгновенно.
+Виджет автоматически считает сумму по любым числовым полям сделок.
 
 ━━━━━━━━━━━━━━━
 
@@ -56,12 +58,6 @@ bot.start(async (ctx) => {
 👑 1 год — 2999 ₽
 
 ━━━━━━━━━━━━━━━
-
-✅ Что входит:
-• Полный доступ
-• Поддержка
-• Интеграции
-• Обновления
 
 👇 Выберите действие ниже
 `;
@@ -94,12 +90,13 @@ bot.start(async (ctx) => {
         [
           {
             text: "💬 Поддержка",
-            callback_data: "support",
+            url: SUPPORT_URL,
           },
         ],
       ],
     },
   });
+
 });
 
 // =========================
@@ -107,6 +104,7 @@ bot.start(async (ctx) => {
 // =========================
 
 bot.action("buy", async (ctx) => {
+
   await ctx.answerCbQuery();
 
   await ctx.reply(`💳 Выберите период подписки`, {
@@ -135,6 +133,7 @@ bot.action("buy", async (ctx) => {
       ],
     },
   });
+
 });
 
 // =========================
@@ -142,6 +141,7 @@ bot.action("buy", async (ctx) => {
 // =========================
 
 bot.action(/period_(.+)/, async (ctx) => {
+
   const period = ctx.match[1];
 
   userSelections[ctx.from.id] = {
@@ -157,24 +157,7 @@ bot.action(/period_(.+)/, async (ctx) => {
 Введите в формате:
 company.amocrm.ru`
   );
-});
 
-// =========================
-// SUPPORT
-// =========================
-
-bot.action("support", async (ctx) => {
-  await ctx.answerCbQuery();
-
-  userSelections[ctx.from.id] = {
-    waitingSupport: true,
-  };
-
-  await ctx.reply(
-`💬 Напишите ваш вопрос одним сообщением.
-
-Наш менеджер скоро ответит.`
-  );
 });
 
 // =========================
@@ -204,60 +187,12 @@ company.amocrm.ru`
 // =========================
 
 bot.on("text", async (ctx) => {
+
   const userData = userSelections[ctx.from.id];
 
   if (!userData) {
     return;
   }
-
-  // =========================
-  // SUPPORT
-  // =========================
-
-if (userData.waitingSupport) {
-
-  const supportMessage = ctx.message.text;
-
-  try {
-
-    const response = await fetch(
-      "https://hook.eu1.make.com/movsz2g5rx0vmel6l684xopfto7aatbl",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          telegram_id: ctx.from.id,
-          username: ctx.from.username,
-          first_name: ctx.from.first_name,
-          message: supportMessage,
-          date: new Date().toISOString()
-        })
-      }
-    );
-
-    console.log("MAKE STATUS:", response.status);
-
-    userSelections[ctx.from.id].waitingSupport = false;
-
-    return ctx.reply(
-`✅ Сообщение отправлено в поддержку`
-    );
-
-  } catch (error) {
-
-    console.error(error);
-
-    return ctx.reply(
-`❌ Ошибка отправки в поддержку`
-    );
-  }
-}
-
-  // =========================
-  // DOMAIN INPUT
-  // =========================
 
   if (userData.waitingDomain) {
 
@@ -277,6 +212,90 @@ company.amocrm.ru`
 
     userSelections[ctx.from.id].waitingDomain = false;
     userSelections[ctx.from.id].domain = domain;
+
+    // =========================
+    // TRIAL
+    // =========================
+
+    if (userData.period === "trial") {
+
+      // Уведомление тебе
+      await bot.telegram.sendMessage(
+        ADMIN_ID,
+
+`🧪 Новый Trial
+
+👤 ${ctx.from.first_name}
+🆔 ${ctx.from.id}
+
+🌐 ${domain}`
+      );
+
+      // Отправка в Albato
+      await fetch(
+        "https://h.albato.ru/wh/38/1lfdb3f/0n1CVMbvadYQAsKvEx5ZoF1KGvNgdSDEtznWLZBxWu4/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify({
+            type: "trial",
+            domain: domain,
+            tariff: "trial",
+            telegram_id: ctx.from.id,
+            username: ctx.from.username,
+            name: ctx.from.first_name
+          })
+        }
+      );
+
+      return ctx.reply(
+`✅ Ваш trial для домена:
+
+${domain}
+
+будет активирован в ближайшее время.`
+      );
+    }
+
+    // =========================
+    // BUY
+    // =========================
+
+    await bot.telegram.sendMessage(
+      ADMIN_ID,
+
+`🛒 Новая покупка
+
+👤 ${ctx.from.first_name}
+🆔 ${ctx.from.id}
+
+🌐 ${domain}
+
+💎 Тариф:
+${userData.period}`
+    );
+
+    await fetch(
+      "https://h.albato.ru/wh/38/1lfdb3f/0n1CVMbvadYQAsKvEx5ZoF1KGvNgdSDEtznWLZBxWu4/",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+          type: "buy",
+          domain: domain,
+          tariff: userData.period,
+          telegram_id: ctx.from.id,
+          username: ctx.from.username,
+          name: ctx.from.first_name
+        })
+      }
+    );
 
     const paymentLink = PAYMENT_LINKS[userData.period];
 
@@ -310,13 +329,26 @@ bot.command("help", async (ctx) => {
   await ctx.reply(
 `💬 Поддержка
 
-Если возникли вопросы:
-
-📩 Telegram:
 ${SUPPORT_URL}`
   );
 
 });
+
+// =========================
+// MENU
+// =========================
+
+bot.telegram.setMyCommands([
+  {
+    command: "start",
+    description: "Открыть меню"
+  },
+
+  {
+    command: "help",
+    description: "Поддержка"
+  }
+]);
 
 // =========================
 // WEBHOOK
@@ -335,5 +367,74 @@ app.listen(PORT, async () => {
   await bot.telegram.setWebhook(`${RENDER_URL}/bot`);
 
   console.log("Webhook connected");
+
+});
+
+// =========================
+// KEY
+// =========================
+
+bot.command("key", async (ctx) => {
+
+  if (ctx.from.id !== ADMIN_ID) {
+    return;
+  }
+
+  const args = ctx.message.text.split(" ");
+
+  const userId = args[1];
+  const key = args.slice(2).join(" ");
+
+  if (!userId || !key) {
+
+    return ctx.reply(
+`Использование:
+
+/key USER_ID КЛЮЧ`
+    );
+  }
+
+  await bot.telegram.sendMessage(
+    userId,
+
+`🔑 Ваш лицензионный ключ:
+
+${key}`
+  );
+
+  ctx.reply("✅ Ключ отправлен");
+
+});
+
+// =========================
+// ACTIVATE
+// =========================
+
+bot.command("activate", async (ctx) => {
+
+  if (ctx.from.id !== ADMIN_ID) {
+    return;
+  }
+
+  const args = ctx.message.text.split(" ");
+
+  const userId = args[1];
+
+  if (!userId) {
+
+    return ctx.reply(
+`Использование:
+
+/activate USER_ID`
+    );
+  }
+
+  await bot.telegram.sendMessage(
+    userId,
+
+`✅ Ваш trial активирован`
+  );
+
+  ctx.reply("✅ Клиент уведомлен");
 
 });
