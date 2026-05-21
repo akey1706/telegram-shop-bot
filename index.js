@@ -7,6 +7,7 @@ const express = require("express");
 const { Telegraf } = require("telegraf");
 
 const app = express();
+
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 app.use(express.json());
@@ -24,29 +25,50 @@ const BANNER_URL =
 
 const ADMIN_ID = 1387488821;
 
+// Webhook Albato
+const ALBATO_WEBHOOK =
+  "https://h.albato.ru/wh/38/1lfdb3f/0n1CVMbvadYQAsKvEx5ZoF1KGvNgdSDEtznWLZBxWu4/";
+
 // Ссылки на оплату
 const PAYMENT_LINKS = {
   "1_month": "https://your-site.com/pay-1-month",
+
   "6_months": "https://your-site.com/pay-6-months",
+
   "1_year": "https://your-site.com/pay-1-year",
 };
 
 // =========================
-// ХРАНЕНИЕ ДАННЫХ
+// ХРАНЕНИЕ СОСТОЯНИЙ
 // =========================
 
 const userSelections = {};
+
+// =========================
+// MENU COMMANDS
+// =========================
+
+bot.telegram.setMyCommands([
+  {
+    command: "start",
+    description: "Открыть меню",
+  },
+
+  {
+    command: "help",
+    description: "Поддержка",
+  },
+]);
 
 // =========================
 // START
 // =========================
 
 bot.start(async (ctx) => {
-
   const caption = `
 🔥 <b>Сумма по списку</b>
 
-Виджет автоматически считает сумму по любым числовым полям сделок.
+Виджет автоматически считает сумму по числовым полям сделок и показывает итог прямо в списке.
 
 ━━━━━━━━━━━━━━━
 
@@ -58,6 +80,12 @@ bot.start(async (ctx) => {
 👑 1 год — 2999 ₽
 
 ━━━━━━━━━━━━━━━
+
+✅ Что входит:
+• Полный доступ
+• Поддержка
+• Интеграции
+• Обновления
 
 👇 Выберите действие ниже
 `;
@@ -96,15 +124,13 @@ bot.start(async (ctx) => {
       ],
     },
   });
-
 });
 
 // =========================
-// КУПИТЬ
+// BUY
 // =========================
 
 bot.action("buy", async (ctx) => {
-
   await ctx.answerCbQuery();
 
   await ctx.reply(`💳 Выберите период подписки`, {
@@ -133,20 +159,18 @@ bot.action("buy", async (ctx) => {
       ],
     },
   });
-
 });
 
 // =========================
-// ВЫБОР ПЕРИОДА
+// PERIOD
 // =========================
 
 bot.action(/period_(.+)/, async (ctx) => {
-
   const period = ctx.match[1];
 
   userSelections[ctx.from.id] = {
-    period,
     waitingDomain: true,
+    period,
   };
 
   await ctx.answerCbQuery();
@@ -157,7 +181,6 @@ bot.action(/period_(.+)/, async (ctx) => {
 Введите в формате:
 company.amocrm.ru`
   );
-
 });
 
 // =========================
@@ -165,12 +188,11 @@ company.amocrm.ru`
 // =========================
 
 bot.action("trial", async (ctx) => {
-
   await ctx.answerCbQuery();
 
   userSelections[ctx.from.id] = {
     waitingDomain: true,
-    period: "trial"
+    period: "trial",
   };
 
   await ctx.reply(
@@ -179,29 +201,25 @@ bot.action("trial", async (ctx) => {
 Введите в формате:
 company.amocrm.ru`
   );
-
 });
 
 // =========================
-// ОБРАБОТКА СООБЩЕНИЙ
+// TEXT
 // =========================
 
 bot.on("text", async (ctx) => {
-
   const userData = userSelections[ctx.from.id];
 
-  if (!userData) {
-    return;
-  }
+  // =========================
+  // DOMAIN INPUT
+  // =========================
 
-  if (userData.waitingDomain) {
-
+  if (userData && userData.waitingDomain) {
     const domain = ctx.message.text.trim();
 
     const domainRegex = /^[a-zA-Z0-9-]+\.amocrm\.ru$/;
 
     if (!domainRegex.test(domain)) {
-
       return ctx.reply(
 `❌ Неверный формат домена
 
@@ -211,7 +229,6 @@ company.amocrm.ru`
     }
 
     userSelections[ctx.from.id].waitingDomain = false;
-    userSelections[ctx.from.id].domain = domain;
 
     // =========================
     // TRIAL
@@ -231,25 +248,28 @@ company.amocrm.ru`
 🌐 ${domain}`
       );
 
-      // Отправка в Albato
-      await fetch(
-        "https://h.albato.ru/wh/38/1lfdb3f/0n1CVMbvadYQAsKvEx5ZoF1KGvNgdSDEtznWLZBxWu4/",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
+      // Albato
+      await fetch(ALBATO_WEBHOOK, {
+        method: "POST",
 
-          body: JSON.stringify({
-            type: "trial",
-            domain: domain,
-            tariff: "trial",
-            telegram_id: ctx.from.id,
-            username: ctx.from.username,
-            name: ctx.from.first_name
-          })
-        }
-      );
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          type: "trial",
+
+          domain: domain,
+
+          tariff: "trial",
+
+          telegram_id: ctx.from.id,
+
+          username: ctx.from.username,
+
+          first_name: ctx.from.first_name,
+        }),
+      });
 
       return ctx.reply(
 `✅ Ваш trial для домена:
@@ -264,6 +284,7 @@ ${domain}
     // BUY
     // =========================
 
+    // Уведомление тебе
     await bot.telegram.sendMessage(
       ADMIN_ID,
 
@@ -278,24 +299,28 @@ ${domain}
 ${userData.period}`
     );
 
-    await fetch(
-      "https://h.albato.ru/wh/38/1lfdb3f/0n1CVMbvadYQAsKvEx5ZoF1KGvNgdSDEtznWLZBxWu4/",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+    // Albato
+    await fetch(ALBATO_WEBHOOK, {
+      method: "POST",
 
-        body: JSON.stringify({
-          type: "buy",
-          domain: domain,
-          tariff: userData.period,
-          telegram_id: ctx.from.id,
-          username: ctx.from.username,
-          name: ctx.from.first_name
-        })
-      }
-    );
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({
+        type: "buy",
+
+        domain: domain,
+
+        tariff: userData.period,
+
+        telegram_id: ctx.from.id,
+
+        username: ctx.from.username,
+
+        first_name: ctx.from.first_name,
+      }),
+    });
 
     const paymentLink = PAYMENT_LINKS[userData.period];
 
@@ -318,6 +343,24 @@ ${userData.period}`
     );
   }
 
+  // =========================
+  // ПРОСТЫЕ СООБЩЕНИЯ
+  // =========================
+
+  await bot.telegram.sendMessage(
+    ADMIN_ID,
+
+`💬 Новое сообщение
+
+👤 ${ctx.from.first_name}
+🆔 ${ctx.from.id}
+
+✉️ ${ctx.message.text}`
+  );
+
+  return ctx.reply(
+`✅ Сообщение отправлено в поддержку`
+  );
 });
 
 // =========================
@@ -325,48 +368,47 @@ ${userData.period}`
 // =========================
 
 bot.command("help", async (ctx) => {
-
   await ctx.reply(
 `💬 Поддержка
 
 ${SUPPORT_URL}`
   );
-
 });
 
 // =========================
-// MENU
+// REPLY
 // =========================
 
-bot.telegram.setMyCommands([
-  {
-    command: "start",
-    description: "Открыть меню"
-  },
+bot.command("reply", async (ctx) => {
 
-  {
-    command: "help",
-    description: "Поддержка"
+  if (ctx.from.id !== ADMIN_ID) {
+    return;
   }
-]);
 
-// =========================
-// WEBHOOK
-// =========================
+  const args = ctx.message.text.split(" ");
 
-app.use(bot.webhookCallback("/bot"));
+  const userId = args[1];
 
-const PORT = process.env.PORT || 3000;
+  const message = args.slice(2).join(" ");
 
-app.listen(PORT, async () => {
+  if (!userId || !message) {
 
-  console.log("Bot started");
+    return ctx.reply(
+`Использование:
 
-  const RENDER_URL = process.env.RENDER_EXTERNAL_URL;
+/reply USER_ID сообщение`
+    );
+  }
 
-  await bot.telegram.setWebhook(`${RENDER_URL}/bot`);
+  await bot.telegram.sendMessage(
+    userId,
 
-  console.log("Webhook connected");
+`💬 Ответ поддержки:
+
+${message}`
+  );
+
+  ctx.reply("✅ Ответ отправлен");
 
 });
 
@@ -383,6 +425,7 @@ bot.command("key", async (ctx) => {
   const args = ctx.message.text.split(" ");
 
   const userId = args[1];
+
   const key = args.slice(2).join(" ");
 
   if (!userId || !key) {
@@ -436,5 +479,25 @@ bot.command("activate", async (ctx) => {
   );
 
   ctx.reply("✅ Клиент уведомлен");
+
+});
+
+// =========================
+// WEBHOOK
+// =========================
+
+app.use(bot.webhookCallback("/bot"));
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, async () => {
+
+  console.log("Bot started");
+
+  const RENDER_URL = process.env.RENDER_EXTERNAL_URL;
+
+  await bot.telegram.setWebhook(`${RENDER_URL}/bot`);
+
+  console.log("Webhook connected");
 
 });
