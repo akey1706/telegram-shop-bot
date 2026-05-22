@@ -7,7 +7,6 @@ const express = require("express");
 const { Telegraf } = require("telegraf");
 
 const app = express();
-
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 app.use(express.json());
@@ -25,11 +24,11 @@ const BANNER_URL =
 
 const ADMIN_ID = 1387488821;
 
-// Webhook Albato
+// Albato webhook
 const ALBATO_WEBHOOK =
   "https://h.albato.ru/wh/38/1lfdb3f/0n1CVMbvadYQAsKvEx5ZoF1KGvNgdSDEtznWLZBxWu4/";
 
-// Ссылки на оплату
+// Ссылки оплаты
 const PAYMENT_LINKS = {
   "1_month": "https://your-site.com/pay-1-month",
 
@@ -39,13 +38,13 @@ const PAYMENT_LINKS = {
 };
 
 // =========================
-// ХРАНЕНИЕ СОСТОЯНИЙ
+// STORAGE
 // =========================
 
 const userSelections = {};
 
 // =========================
-// MENU COMMANDS
+// COMMAND MENU
 // =========================
 
 bot.telegram.setMyCommands([
@@ -203,159 +202,6 @@ company.amocrm.ru`
   );
 });
 
-  // =========================
-  // DOMAIN INPUT
-  // =========================
-
-  if (userData && userData.waitingDomain) {
-    const domain = ctx.message.text.trim();
-
-    const domainRegex = /^[a-zA-Z0-9-]+\.amocrm\.ru$/;
-
-    if (!domainRegex.test(domain)) {
-      return ctx.reply(
-`❌ Неверный формат домена
-
-Введите домен в формате:
-company.amocrm.ru`
-      );
-    }
-
-    userSelections[ctx.from.id].waitingDomain = false;
-
-    // =========================
-    // TRIAL
-    // =========================
-
-    if (userData.period === "trial") {
-
-      // Уведомление тебе
-      await bot.telegram.sendMessage(
-        ADMIN_ID,
-
-`🧪 Новый Trial
-
-👤 ${ctx.from.first_name}
-🆔 ${ctx.from.id}
-
-🌐 ${domain}`
-      );
-
-      // Albato
-      await fetch(ALBATO_WEBHOOK, {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json",
-        },
-
-        body: JSON.stringify({
-          type: "trial",
-
-          domain: domain,
-
-          tariff: "trial",
-
-          telegram_id: ctx.from.id,
-
-          username: ctx.from.username,
-
-          first_name: ctx.from.first_name,
-        }),
-      });
-
-      return ctx.reply(
-`✅ Ваш trial для домена:
-
-${domain}
-
-будет активирован в ближайшее время.`
-      );
-    }
-
-    // =========================
-    // BUY
-    // =========================
-
-    // Уведомление тебе
-    await bot.telegram.sendMessage(
-      ADMIN_ID,
-
-`🛒 Новая покупка
-
-👤 ${ctx.from.first_name}
-🆔 ${ctx.from.id}
-
-🌐 ${domain}
-
-💎 Тариф:
-${userData.period}`
-    );
-
-    // Albato
-    await fetch(ALBATO_WEBHOOK, {
-      method: "POST",
-
-      headers: {
-        "Content-Type": "application/json",
-      },
-
-      body: JSON.stringify({
-        type: "buy",
-
-        domain: domain,
-
-        tariff: userData.period,
-
-        telegram_id: ctx.from.id,
-
-        username: ctx.from.username,
-
-        first_name: ctx.from.first_name,
-      }),
-    });
-
-    const paymentLink = PAYMENT_LINKS[userData.period];
-
-    return ctx.reply(
-`✅ Домен сохранён: ${domain}
-
-💳 Для оплаты перейдите по ссылке ниже`,
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: "💰 Оплатить",
-                url: paymentLink,
-              },
-            ],
-          ],
-        },
-      }
-    );
-  }
-
-  // =========================
-  // ПРОСТЫЕ СООБЩЕНИЯ
-  // =========================
-
-  await bot.telegram.sendMessage(
-    ADMIN_ID,
-
-`💬 Новое сообщение
-
-👤 ${ctx.from.first_name}
-🆔 ${ctx.from.id}
-
-✉️ ${ctx.message.text}`
-  );
-
-  return ctx.reply(
-`✅ Сообщение отправлено в поддержку`
-  );
-});
-
 // =========================
 // HELP
 // =========================
@@ -474,17 +320,171 @@ bot.command("activate", async (ctx) => {
   ctx.reply("✅ Клиент уведомлен");
 
 });
+
 // =========================
 // TEXT
 // =========================
 
 bot.on("text", async (ctx) => {
-  const userData = userSelections[ctx.from.id];
 
   // Игнорируем команды
-if (ctx.message.text.startsWith("/")) {
-  return;
-}
+  if (ctx.message.text.startsWith("/")) {
+    return;
+  }
+
+  const userData = userSelections[ctx.from.id];
+
+  // =========================
+  // DOMAIN INPUT
+  // =========================
+
+  if (userData && userData.waitingDomain) {
+
+    const domain = ctx.message.text.trim();
+
+    const domainRegex = /^[a-zA-Z0-9-]+\.amocrm\.ru$/;
+
+    if (!domainRegex.test(domain)) {
+
+      return ctx.reply(
+`❌ Неверный формат домена
+
+Введите домен в формате:
+company.amocrm.ru`
+      );
+    }
+
+    userSelections[ctx.from.id].waitingDomain = false;
+
+    // =========================
+    // TRIAL
+    // =========================
+
+    if (userData.period === "trial") {
+
+      await bot.telegram.sendMessage(
+        ADMIN_ID,
+
+`🧪 Новый Trial
+
+👤 ${ctx.from.first_name}
+🆔 ${ctx.from.id}
+
+🌐 ${domain}`
+      );
+
+      await fetch(ALBATO_WEBHOOK, {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          type: "trial",
+
+          domain,
+
+          tariff: "trial",
+
+          telegram_id: ctx.from.id,
+
+          username: ctx.from.username,
+
+          first_name: ctx.from.first_name,
+        }),
+      });
+
+      return ctx.reply(
+`✅ Ваш trial для домена:
+
+${domain}
+
+будет активирован в ближайшее время.`
+      );
+    }
+
+    // =========================
+    // BUY
+    // =========================
+
+    await bot.telegram.sendMessage(
+      ADMIN_ID,
+
+`🛒 Новая покупка
+
+👤 ${ctx.from.first_name}
+🆔 ${ctx.from.id}
+
+🌐 ${domain}
+
+💎 Тариф:
+${userData.period}`
+    );
+
+    await fetch(ALBATO_WEBHOOK, {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({
+        type: "buy",
+
+        domain,
+
+        tariff: userData.period,
+
+        telegram_id: ctx.from.id,
+
+        username: ctx.from.username,
+
+        first_name: ctx.from.first_name,
+      }),
+    });
+
+    const paymentLink = PAYMENT_LINKS[userData.period];
+
+    return ctx.reply(
+`✅ Домен сохранён: ${domain}
+
+💳 Для оплаты перейдите по ссылке ниже`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "💰 Оплатить",
+                url: paymentLink,
+              },
+            ],
+          ],
+        },
+      }
+    );
+  }
+
+  // =========================
+  // SIMPLE MESSAGES
+  // =========================
+
+  await bot.telegram.sendMessage(
+    ADMIN_ID,
+
+`💬 Новое сообщение
+
+👤 ${ctx.from.first_name}
+🆔 ${ctx.from.id}
+
+✉️ ${ctx.message.text}`
+  );
+
+  return ctx.reply(
+`✅ Сообщение отправлено в поддержку`
+  );
+
+});
 
 // =========================
 // WEBHOOK
