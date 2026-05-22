@@ -5,7 +5,7 @@ require("dotenv").config();
 
 const express = require("express");
 const { Telegraf } = require("telegraf");
-const YooKassa = require("@a2seven/yoo-checkout");
+const { YooCheckout } = require("@a2seven/yoo-checkout");
 
 const app = express();
 
@@ -17,13 +17,7 @@ app.use(express.json());
 // YOOKASSA
 // =========================
 
-console.log("YOOKASSA_SHOP_ID:", process.env.YOOKASSA_SHOP_ID);
-console.log(
-  "YOOKASSA_SECRET_KEY:",
-  process.env.YOOKASSA_SECRET_KEY ? "LOADED" : "NOT FOUND"
-);
-
-const checkout = new YooKassa({
+const checkout = new YooCheckout({
   shopId: process.env.YOOKASSA_SHOP_ID,
   secretKey: process.env.YOOKASSA_SECRET_KEY,
 });
