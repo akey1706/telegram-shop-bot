@@ -298,27 +298,6 @@ async function createAmoLead(data) {
     }
 
     // =========================
-    // ДАТЫ
-    // =========================
-
-    const today =
-      new Date()
-        .toISOString()
-        .split("T")[0];
-
-    const trialEnd =
-      new Date(
-        Date.now() +
-          14 *
-            24 *
-            60 *
-            60 *
-            1000
-      )
-        .toISOString()
-        .split("T")[0];
-
-    // =========================
     // СОЗДАЕМ СДЕЛКУ
     // =========================
 
@@ -365,34 +344,34 @@ async function createAmoLead(data) {
             ],
           },
 
-          // Дата
-          {
-            field_id:
-              FIELD_PURCHASE_DATE,
+           // Дата заявки / покупки
+  {
+    field_id: FIELD_PURCHASE_DATE,
 
-            values: [
-              {
-                value: today,
-              },
-            ],
-          },
+    values: [
+      {
+        value: Math.floor(Date.now() / 1000),
+      },
+    ],
+  },
 
-          // Trial end
-          ...(data.type === "trial"
-            ? [
-                {
-                  field_id:
-                    FIELD_TRIAL_END,
+          // Дата окончания trial
+  ...(data.type === "trial"
+    ? [
+        {
+          field_id: FIELD_TRIAL_END,
 
-                  values: [
-                    {
-                      value:
-                        trialEnd,
-                    },
-                  ],
-                },
-              ]
-            : []),
+          values: [
+            {
+              value: Math.floor(
+                (Date.now() +
+                  14 * 24 * 60 * 60 * 1000) / 1000
+              ),
+            },
+          ],
+        },
+      ]
+    : []),
         ],
 
         _embedded: {
@@ -828,7 +807,7 @@ ${domain}
         phone:
           userData.phone,
       });
-      
+
       if (!leadId) {
 
   return ctx.reply(
