@@ -203,18 +203,6 @@ company.amocrm.ru`
   );
 });
 
-// =========================
-// TEXT
-// =========================
-
-bot.on("text", async (ctx) => {
-  const userData = userSelections[ctx.from.id];
-
-  // Игнорируем команды
-if (ctx.message.text.startsWith("/")) {
-  return;
-}
-
   // =========================
   // DOMAIN INPUT
   // =========================
@@ -486,6 +474,17 @@ bot.command("activate", async (ctx) => {
   ctx.reply("✅ Клиент уведомлен");
 
 });
+// =========================
+// TEXT
+// =========================
+
+bot.on("text", async (ctx) => {
+  const userData = userSelections[ctx.from.id];
+
+  // Игнорируем команды
+if (ctx.message.text.startsWith("/")) {
+  return;
+}
 
 // =========================
 // WEBHOOK
