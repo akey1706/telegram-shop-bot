@@ -28,7 +28,8 @@ const checkout = new YooCheckout({
 
 const WEBSITE_URL = "https://akey1706.github.io/github.io/";
 
-const SUPPORT_URL = "https://t.me/sumbylist_support_bot";
+const SUPPORT_URL =
+  "https://t.me/sumbylist_support_bot";
 
 const BANNER_URL =
   "https://raw.githubusercontent.com/akey1706/sum_by_list_image/main/tg_banner.png";
@@ -43,7 +44,10 @@ const AMO_PIPELINE_ID = 10931642;
 const AMO_STATUS_ID = 85963450;
 const AMO_PAID_STATUS_ID = 85963454;
 
-// ID полей
+// =========================
+// ПОЛЯ AMOCRM
+// =========================
+
 const FIELD_DOMAIN = 854933;
 const FIELD_TARIFF = 854927;
 const FIELD_TELEGRAM_ID = 857115;
@@ -83,14 +87,16 @@ const userSelections = {};
 // =========================
 
 async function createAmoLead(data) {
+
   try {
+
     console.log("=== CREATE AMO LEAD ===");
     console.log(data);
 
     let contactId = null;
 
     // =========================
-    // ИЩЕМ КОНТАКТ
+    // ПОИСК КОНТАКТА
     // =========================
 
     const searchResponse = await fetch(
@@ -105,32 +111,51 @@ async function createAmoLead(data) {
       }
     );
 
-    const searchText = await searchResponse.text();
+    const searchText =
+      await searchResponse.text();
 
-    console.log("SEARCH STATUS:", searchResponse.status);
-    console.log("SEARCH RESPONSE:", searchText);
+    console.log(
+      "SEARCH STATUS:",
+      searchResponse.status
+    );
+
+    console.log(
+      "SEARCH RESPONSE:",
+      searchText
+    );
 
     if (searchResponse.ok) {
-      const searchData = JSON.parse(searchText);
+
+      const searchData =
+        JSON.parse(searchText);
 
       if (
         searchData._embedded &&
         searchData._embedded.contacts &&
         searchData._embedded.contacts.length > 0
       ) {
+
         contactId =
           searchData._embedded.contacts[0].id;
 
-        console.log("FOUND CONTACT:", contactId);
+        console.log(
+          "FOUND CONTACT:",
+          contactId
+        );
+
       }
+
     }
 
     // =========================
-    // СОЗДАЕМ КОНТАКТ
+    // СОЗДАНИЕ КОНТАКТА
     // =========================
 
     if (!contactId) {
-      console.log("CONTACT NOT FOUND. CREATING NEW");
+
+      console.log(
+        "CONTACT NOT FOUND. CREATING NEW"
+      );
 
       const contactResponse = await fetch(
         `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/contacts`,
@@ -144,12 +169,16 @@ async function createAmoLead(data) {
 
           body: JSON.stringify([
             {
-              name: data.name || "Telegram User",
+              name:
+                data.name ||
+                "Telegram User",
 
               custom_fields_values: [
+
                 // Telegram username
                 {
-                  field_id: FIELD_TELEGRAM_USERNAME,
+                  field_id:
+                    FIELD_TELEGRAM_USERNAME,
 
                   values: [
                     {
@@ -162,11 +191,14 @@ async function createAmoLead(data) {
 
                 // Telegram ID
                 {
-                  field_id: FIELD_TELEGRAM_ID,
+                  field_id:
+                    FIELD_TELEGRAM_ID,
 
                   values: [
                     {
-                      value: String(data.telegram_id),
+                      value: String(
+                        data.telegram_id
+                      ),
                     },
                   ],
                 },
@@ -175,11 +207,13 @@ async function createAmoLead(data) {
                 ...(data.phone
                   ? [
                       {
-                        field_code: "PHONE",
+                        field_code:
+                          "PHONE",
 
                         values: [
                           {
-                            value: data.phone,
+                            value:
+                              data.phone,
                           },
                         ],
                       },
@@ -214,11 +248,15 @@ async function createAmoLead(data) {
       contactId =
         contactData._embedded.contacts[0].id;
 
-      console.log("NEW CONTACT:", contactId);
+      console.log(
+        "NEW CONTACT:",
+        contactId
+      );
+
     }
 
     // =========================
-    // СОЗДАЕМ СДЕЛКУ
+    // СОЗДАНИЕ СДЕЛКИ
     // =========================
 
     const leadResponse = await fetch(
@@ -238,65 +276,77 @@ async function createAmoLead(data) {
                 ? "TRIAL"
                 : "ПОКУПКА"} - ${data.domain}`,
 
-            pipeline_id: AMO_PIPELINE_ID,
-            status_id: AMO_STATUS_ID,
+            pipeline_id:
+              AMO_PIPELINE_ID,
+
+            status_id:
+              AMO_STATUS_ID,
 
             price: 0,
 
             custom_fields_values: [
+
               // Домен
               {
-                field_id: FIELD_DOMAIN,
+                field_id:
+                  FIELD_DOMAIN,
 
                 values: [
                   {
-                    value: data.domain,
+                    value:
+                      data.domain,
                   },
                 ],
               },
 
               // Тариф
               {
-                field_id: FIELD_TARIFF,
+                field_id:
+                  FIELD_TARIFF,
 
                 values: [
                   {
-                    value: data.tariff,
+                    value:
+                      data.tariff,
                   },
                 ],
               },
 
               // Дата
               {
-                field_id: FIELD_PURCHASE_DATE,
+                field_id:
+                  FIELD_PURCHASE_DATE,
 
                 values: [
                   {
-                    value: new Date()
-                      .toISOString()
-                      .split("T")[0],
+                    value:
+                      new Date()
+                        .toISOString()
+                        .split("T")[0],
                   },
                 ],
               },
 
-              // Дата окончания trial
+              // Trial end
               ...(data.type === "trial"
                 ? [
                     {
-                      field_id: FIELD_TRIAL_END,
+                      field_id:
+                        FIELD_TRIAL_END,
 
                       values: [
                         {
-                          value: new Date(
-                            Date.now() +
-                              14 *
-                                24 *
-                                60 *
-                                60 *
-                                1000
-                          )
-                            .toISOString()
-                            .split("T")[0],
+                          value:
+                            new Date(
+                              Date.now() +
+                                14 *
+                                  24 *
+                                  60 *
+                                  60 *
+                                  1000
+                            )
+                              .toISOString()
+                              .split("T")[0],
                         },
                       ],
                     },
@@ -316,29 +366,55 @@ async function createAmoLead(data) {
       }
     );
 
-    const leadText = await leadResponse.text();
+    const leadText =
+      await leadResponse.text();
 
-    console.log("LEAD STATUS:", leadResponse.status);
-    console.log("LEAD RESPONSE:", leadText);
+    console.log(
+      "LEAD STATUS:",
+      leadResponse.status
+    );
+
+    console.log(
+      "LEAD RESPONSE:",
+      leadText
+    );
 
     if (!leadResponse.ok) {
       return null;
     }
 
-    const leadData = JSON.parse(leadText);
+    const leadData =
+      JSON.parse(leadText);
+
+    if (
+      !leadData._embedded ||
+      !leadData._embedded.leads ||
+      !leadData._embedded.leads.length
+    ) {
+
+      console.log(
+        "LEAD CREATE ERROR"
+      );
+
+      return null;
+
+    }
 
     return leadData._embedded.leads[0].id;
 
   } catch (error) {
+
     console.log("AMO ERROR:");
     console.log(error);
 
     return null;
+
   }
+
 }
 
 // =========================
-// MENU COMMANDS
+// COMMANDS
 // =========================
 
 bot.telegram.setMyCommands([
@@ -384,40 +460,47 @@ bot.start(async (ctx) => {
 👇 Выберите действие ниже
 `;
 
-  await ctx.replyWithPhoto(BANNER_URL, {
-    caption,
-    parse_mode: "HTML",
+  await ctx.replyWithPhoto(
+    BANNER_URL,
+    {
+      caption,
+      parse_mode: "HTML",
 
-    reply_markup: {
-      inline_keyboard: [
-        [
-          {
-            text: "🌐 Перейти на сайт",
-            url: WEBSITE_URL,
-          },
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text:
+                "🌐 Перейти на сайт",
+              url: WEBSITE_URL,
+            },
+          ],
+
+          [
+            {
+              text: "💳 Купить",
+              callback_data: "buy",
+            },
+
+            {
+              text:
+                "🧪 Получить Триал",
+              callback_data:
+                "trial",
+            },
+          ],
+
+          [
+            {
+              text:
+                "💬 Поддержка",
+              url: SUPPORT_URL,
+            },
+          ],
         ],
-
-        [
-          {
-            text: "💳 Купить",
-            callback_data: "buy",
-          },
-
-          {
-            text: "🧪 Получить Триал",
-            callback_data: "trial",
-          },
-        ],
-
-        [
-          {
-            text: "💬 Поддержка",
-            url: SUPPORT_URL,
-          },
-        ],
-      ],
-    },
-  });
+      },
+    }
+  );
 
 });
 
@@ -429,24 +512,35 @@ bot.action("buy", async (ctx) => {
 
   await ctx.answerCbQuery();
 
-  userSelections[ctx.from.id] = {
-    waitingPhone: true,
-  };
-
   await ctx.reply(
-`📱 Сначала отправьте номер телефона`,
+    `💳 Выберите период подписки`,
     {
       reply_markup: {
-        keyboard: [
+        inline_keyboard: [
           [
             {
-              text: "📞 Поделиться номером",
-              request_contact: true,
+              text: "1 месяц",
+              callback_data:
+                "period_1_month",
+            },
+          ],
+
+          [
+            {
+              text: "6 месяцев",
+              callback_data:
+                "period_6_months",
+            },
+          ],
+
+          [
+            {
+              text: "1 год",
+              callback_data:
+                "period_1_year",
             },
           ],
         ],
-        resize_keyboard: true,
-        one_time_keyboard: true,
       },
     }
   );
@@ -457,36 +551,44 @@ bot.action("buy", async (ctx) => {
 // PERIOD
 // =========================
 
-bot.action(/period_(.+)/, async (ctx) => {
+bot.action(
+  /period_(.+)/,
+  async (ctx) => {
 
-  const period = ctx.match[1];
+    const period =
+      ctx.match[1];
 
-  userSelections[ctx.from.id] = {
-    waitingPhone: true,
-    period,
-  };
+    userSelections[
+      ctx.from.id
+    ] = {
+      waitingPhone: true,
+      period,
+    };
 
-  await ctx.answerCbQuery();
+    await ctx.answerCbQuery();
 
-  await ctx.reply(
+    await ctx.reply(
 `📱 Сначала отправьте номер телефона`,
-    {
-      reply_markup: {
-        keyboard: [
-          [
-            {
-              text: "📞 Поделиться номером",
-              request_contact: true,
-            },
+      {
+        reply_markup: {
+          keyboard: [
+            [
+              {
+                text:
+                  "📞 Поделиться номером",
+                request_contact: true,
+              },
+            ],
           ],
-        ],
-        resize_keyboard: true,
-        one_time_keyboard: true,
-      },
-    }
-  );
 
-});
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        },
+      }
+    );
+
+  }
+);
 
 // =========================
 // TRIAL
@@ -496,7 +598,9 @@ bot.action("trial", async (ctx) => {
 
   await ctx.answerCbQuery();
 
-  userSelections[ctx.from.id] = {
+  userSelections[
+    ctx.from.id
+  ] = {
     waitingPhone: true,
     period: "trial",
   };
@@ -508,11 +612,13 @@ bot.action("trial", async (ctx) => {
         keyboard: [
           [
             {
-              text: "📞 Поделиться номером",
+              text:
+                "📞 Поделиться номером",
               request_contact: true,
             },
           ],
         ],
+
         resize_keyboard: true,
         one_time_keyboard: true,
       },
@@ -527,52 +633,27 @@ bot.action("trial", async (ctx) => {
 
 bot.on("contact", async (ctx) => {
 
-  const userData = userSelections[ctx.from.id];
+  const userData =
+    userSelections[ctx.from.id];
 
-  if (!userData || !userData.waitingPhone) {
+  if (
+    !userData ||
+    !userData.waitingPhone
+  ) {
     return;
   }
 
-  userSelections[ctx.from.id].waitingPhone = false;
+  userSelections[
+    ctx.from.id
+  ].waitingPhone = false;
 
-  if (!userSelections[ctx.from.id].period) {
+  userSelections[
+    ctx.from.id
+  ].waitingDomain = true;
 
-    await ctx.reply(
-`💳 Выберите период подписки`,
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: "1 месяц",
-                callback_data: "period_1_month",
-              },
-            ],
-
-            [
-              {
-                text: "6 месяцев",
-                callback_data: "period_6_months",
-              },
-            ],
-
-            [
-              {
-                text: "1 год",
-                callback_data: "period_1_year",
-              },
-            ],
-          ],
-        },
-      }
-    );
-
-    return;
-  }
-
-  userSelections[ctx.from.id].waitingDomain = true;
-
-  userSelections[ctx.from.id].phone =
+  userSelections[
+    ctx.from.id
+  ].phone =
     ctx.message.contact.phone_number;
 
   await ctx.reply(
@@ -595,20 +676,33 @@ company.amocrm.ru`,
 
 bot.on("text", async (ctx) => {
 
-  if (ctx.message.text.startsWith("/")) {
+  if (
+    ctx.message.text.startsWith("/")
+  ) {
     return;
   }
 
-  const userData = userSelections[ctx.from.id];
+  const userData =
+    userSelections[ctx.from.id];
 
-  if (userData && userData.waitingDomain) {
+  // =========================
+  // ВВОД ДОМЕНА
+  // =========================
 
-    const domain = ctx.message.text.trim();
+  if (
+    userData &&
+    userData.waitingDomain
+  ) {
+
+    const domain =
+      ctx.message.text.trim();
 
     const domainRegex =
       /^[a-zA-Z0-9-]+\.amocrm\.ru$/;
 
-    if (!domainRegex.test(domain)) {
+    if (
+      !domainRegex.test(domain)
+    ) {
 
       return ctx.reply(
 `❌ Неверный формат домена
@@ -619,14 +713,18 @@ company.amocrm.ru`
 
     }
 
-    userSelections[ctx.from.id].waitingDomain =
-      false;
+    userSelections[
+      ctx.from.id
+    ].waitingDomain = false;
 
     // =========================
     // TRIAL
     // =========================
 
-    if (userData.period === "trial") {
+    if (
+      userData.period ===
+      "trial"
+    ) {
 
       await bot.telegram.sendMessage(
         ADMIN_ID,
@@ -643,10 +741,14 @@ company.amocrm.ru`
         type: "trial",
         domain,
         tariff: "trial",
-        telegram_id: ctx.from.id,
-        name: ctx.from.first_name,
-        username: ctx.from.username,
-        phone: userData.phone,
+        telegram_id:
+          ctx.from.id,
+        name:
+          ctx.from.first_name,
+        username:
+          ctx.from.username,
+        phone:
+          userData.phone,
       });
 
       return ctx.reply(
@@ -663,52 +765,75 @@ ${domain}
     // BUY
     // =========================
 
-    const tariff = PRICES[userData.period];
+    const tariff =
+      PRICES[userData.period];
 
-    // СОЗДАЕМ СДЕЛКУ
-    const leadId = await createAmoLead({
-      type: "buy",
-      domain,
-      tariff: tariff.label,
-      telegram_id: ctx.from.id,
-      name: ctx.from.first_name,
-      username: ctx.from.username,
-      phone: userData.phone,
-    });
+    const leadId =
+      await createAmoLead({
+        type: "buy",
+        domain,
+        tariff: tariff.label,
+        telegram_id:
+          ctx.from.id,
+        name:
+          ctx.from.first_name,
+        username:
+          ctx.from.username,
+        phone:
+          userData.phone,
+      });
 
     let payment;
 
     try {
 
-      payment = await checkout.createPayment({
+      payment =
+        await checkout.createPayment(
+          {
+            amount: {
+              value:
+                tariff.amount.toFixed(
+                  2
+                ),
 
-        amount: {
-          value: tariff.amount.toFixed(2),
-          currency: "RUB",
-        },
+              currency: "RUB",
+            },
 
-        confirmation: {
-          type: "redirect",
-          return_url: WEBSITE_URL,
-        },
+            confirmation: {
+              type: "redirect",
+              return_url:
+                WEBSITE_URL,
+            },
 
-        capture: true,
+            capture: true,
 
-        description:
-          `Оплата виджета — ${tariff.label}`,
+            description:
+              `Оплата виджета — ${tariff.label}`,
 
-        metadata: {
-          telegram_id: ctx.from.id,
-          domain: domain,
-          tariff: userData.period,
-          lead_id: leadId,
-        },
+            metadata: {
+              telegram_id:
+                ctx.from.id,
 
-      }, Date.now().toString());
+              domain:
+                domain,
+
+              tariff:
+                userData.period,
+
+              lead_id:
+                leadId,
+            },
+          },
+
+          Date.now().toString()
+        );
 
     } catch (error) {
 
-      console.log("YOOKASSA ERROR:");
+      console.log(
+        "YOOKASSA ERROR:"
+      );
+
       console.log(error);
 
       return ctx.reply(
@@ -723,9 +848,9 @@ ${domain}
     }
 
     const paymentLink =
-      payment.confirmation.confirmation_url;
+      payment.confirmation
+        .confirmation_url;
 
-    // Уведомление админу
     await bot.telegram.sendMessage(
       ADMIN_ID,
 
@@ -749,8 +874,11 @@ ${tariff.label}`
           inline_keyboard: [
             [
               {
-                text: "💰 Оплатить",
-                url: paymentLink,
+                text:
+                  "💰 Оплатить",
+
+                url:
+                  paymentLink,
               },
             ],
           ],
@@ -785,47 +913,61 @@ ${tariff.label}`
 // HELP
 // =========================
 
-bot.command("help", async (ctx) => {
+bot.command(
+  "help",
+  async (ctx) => {
 
-  await ctx.reply(
+    await ctx.reply(
 `💬 Поддержка
 
 ${SUPPORT_URL}`
-  );
+    );
 
-});
+  }
+);
 
 // =========================
-// YOOKASSA WEBHOOK
+// WEBHOOK YOOKASSA
 // =========================
 
-app.post("/yookassa-webhook", async (req, res) => {
+app.post(
+  "/yookassa-webhook",
+  async (req, res) => {
 
-  try {
+    try {
 
-    const event = req.body;
+      const event =
+        req.body;
 
-    if (event.event === "payment.succeeded") {
+      if (
+        event.event ===
+        "payment.succeeded"
+      ) {
 
-      const payment = event.object;
+        const payment =
+          event.object;
 
-      const metadata = payment.metadata || {};
+        const metadata =
+          payment.metadata || {};
 
-      const telegramId =
-        metadata.telegram_id;
+        const telegramId =
+          metadata.telegram_id;
 
-      const domain =
-        metadata.domain;
+        const domain =
+          metadata.domain;
 
-      const tariff =
-        metadata.tariff;
+        const tariff =
+          metadata.tariff;
 
-      const leadId =
-        metadata.lead_id;
+        const leadId =
+          metadata.lead_id;
 
-      // Уведомление админу
-      await bot.telegram.sendMessage(
-        ADMIN_ID,
+        // =========================
+        // УВЕДОМЛЕНИЕ АДМИНУ
+        // =========================
+
+        await bot.telegram.sendMessage(
+          ADMIN_ID,
 
 `💰 Новая оплата
 
@@ -840,60 +982,63 @@ ${tariff}
 
 💵 Сумма:
 ${payment.amount.value} RUB`
-      );
+        );
 
-      // =========================
-      // МЕНЯЕМ СТАТУС СДЕЛКИ
-      // =========================
+        // =========================
+        // ОБНОВЛЕНИЕ СТАТУСА
+        // =========================
 
-      if (leadId) {
+        if (leadId) {
 
-        try {
+          try {
 
-          await fetch(
-            `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/leads/${leadId}`,
-            {
-              method: "PATCH",
+            await fetch(
+              `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/leads/${leadId}`,
+              {
+                method: "PATCH",
 
-              headers: {
-                Authorization:
-                  `Bearer ${process.env.AMO_ACCESS_TOKEN}`,
+                headers: {
+                  Authorization:
+                    `Bearer ${process.env.AMO_ACCESS_TOKEN}`,
 
-                "Content-Type":
-                  "application/json",
-              },
+                  "Content-Type":
+                    "application/json",
+                },
 
-              body: JSON.stringify({
-                status_id:
-                  AMO_PAID_STATUS_ID,
+                body: JSON.stringify({
+                  status_id:
+                    AMO_PAID_STATUS_ID,
 
-                pipeline_id:
-                  AMO_PIPELINE_ID,
-              }),
-            }
-          );
+                  pipeline_id:
+                    AMO_PIPELINE_ID,
+                }),
+              }
+            );
 
-          console.log(
-            "LEAD STATUS UPDATED"
-          );
+            console.log(
+              "LEAD STATUS UPDATED"
+            );
 
-        } catch (error) {
+          } catch (error) {
 
-          console.log(
-            "STATUS UPDATE ERROR"
-          );
+            console.log(
+              "STATUS UPDATE ERROR"
+            );
 
-          console.log(error);
+            console.log(error);
+
+          }
 
         }
 
-      }
+        // =========================
+        // УВЕДОМЛЕНИЕ КЛИЕНТУ
+        // =========================
 
-      // Уведомление клиенту
-      if (telegramId) {
+        if (telegramId) {
 
-        await bot.telegram.sendMessage(
-          telegramId,
+          await bot.telegram.sendMessage(
+            telegramId,
 
 `✅ Оплата прошла успешно
 
@@ -904,35 +1049,39 @@ ${domain}
 ${tariff}
 
 В ближайшее время вам будет отправлен лицензионный ключ.`
-        );
+          );
+
+        }
 
       }
 
+      res.status(200).send("OK");
+
+    } catch (error) {
+
+      console.log(
+        "YOOKASSA WEBHOOK ERROR:"
+      );
+
+      console.log(error);
+
+      res.status(500).send("ERROR");
+
     }
 
-    res.status(200).send("OK");
-
-  } catch (error) {
-
-    console.log(
-      "YOOKASSA WEBHOOK ERROR:"
-    );
-
-    console.log(error);
-
-    res.status(500).send("ERROR");
-
   }
-
-});
+);
 
 // =========================
-// WEBHOOK
+// WEBHOOK TELEGRAM
 // =========================
 
-app.use(bot.webhookCallback("/bot"));
+app.use(
+  bot.webhookCallback("/bot")
+);
 
-const PORT = process.env.PORT || 3000;
+const PORT =
+  process.env.PORT || 3000;
 
 app.listen(PORT, async () => {
 
@@ -945,6 +1094,8 @@ app.listen(PORT, async () => {
     `${RENDER_URL}/bot`
   );
 
-  console.log("Webhook connected");
+  console.log(
+    "Webhook connected"
+  );
 
 });
