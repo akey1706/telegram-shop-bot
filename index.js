@@ -86,6 +86,14 @@ const userSelections = {};
 // AMOCRM
 // =========================
 
+// =========================
+// AMOCRM
+// =========================
+
+// =========================
+// AMOCRM
+// =========================
+
 async function createAmoLead(data) {
 
   try {
@@ -96,59 +104,83 @@ async function createAmoLead(data) {
     let contactId = null;
 
     // =========================
-    // ПОИСК КОНТАКТА
+    // ИЩЕМ КОНТАКТ
     // =========================
 
-    const searchResponse = await fetch(
-      `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/contacts?query=${data.telegram_id}`,
-      {
-        method: "GET",
+    try {
 
-        headers: {
-          Authorization: `Bearer ${process.env.AMO_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
-        },
+      const contactsResponse = await fetch(
+        `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/contacts`,
+        {
+          method: "GET",
+
+          headers: {
+            Authorization: `Bearer ${process.env.AMO_ACCESS_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const contactsText =
+        await contactsResponse.text();
+
+      console.log("CONTACT SEARCH:", contactsText);
+
+      if (contactsResponse.ok) {
+
+        const contactsData =
+          JSON.parse(contactsText);
+
+        const contacts =
+          contactsData._embedded?.contacts || [];
+
+        const foundContact =
+          contacts.find((contact) => {
+
+            const fields =
+              contact.custom_fields_values || [];
+
+            return fields.some((field) => {
+
+              if (
+                field.field_id !==
+                FIELD_TELEGRAM_ID
+              ) {
+                return false;
+              }
+
+              return field.values?.some(
+                (v) =>
+                  String(v.value) ===
+                  String(data.telegram_id)
+              );
+
+            });
+
+          });
+
+        if (foundContact) {
+
+          contactId = foundContact.id;
+
+          console.log(
+            "FOUND CONTACT:",
+            contactId
+          );
+
+        }
+
       }
-    );
 
-    const searchText =
-      await searchResponse.text();
+    } catch (error) {
 
-    console.log(
-      "SEARCH STATUS:",
-      searchResponse.status
-    );
-
-    console.log(
-      "SEARCH RESPONSE:",
-      searchText
-    );
-
-    if (searchResponse.ok) {
-
-      const searchData =
-        JSON.parse(searchText);
-
-      if (
-        searchData._embedded &&
-        searchData._embedded.contacts &&
-        searchData._embedded.contacts.length > 0
-      ) {
-
-        contactId =
-          searchData._embedded.contacts[0].id;
-
-        console.log(
-          "FOUND CONTACT:",
-          contactId
-        );
-
-      }
+      console.log("CONTACT SEARCH ERROR");
+      console.log(error);
 
     }
 
     // =========================
-    // СОЗДАНИЕ КОНТАКТА
+    // СОЗДАЕМ КОНТАКТ
     // =========================
 
     if (!contactId) {
@@ -157,73 +189,82 @@ async function createAmoLead(data) {
         "CONTACT NOT FOUND. CREATING NEW"
       );
 
-      const contactResponse = await fetch(
-        `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/contacts`,
+      const contactPayload = [
         {
-          method: "POST",
+          name:
+            data.name ||
+            "Telegram User",
 
-          headers: {
-            Authorization: `Bearer ${process.env.AMO_ACCESS_TOKEN}`,
-            "Content-Type": "application/json",
-          },
+          custom_fields_values: [
 
-          body: JSON.stringify([
+            // Telegram username
             {
-              name:
-                data.name ||
-                "Telegram User",
+              field_id:
+                FIELD_TELEGRAM_USERNAME,
 
-              custom_fields_values: [
-
-                // Telegram username
+              values: [
                 {
-                  field_id:
-                    FIELD_TELEGRAM_USERNAME,
-
-                  values: [
-                    {
-                      value: data.username
-                        ? `@${data.username}`
-                        : "Не указан",
-                    },
-                  ],
+                  value:
+                    data.username
+                      ? `@${data.username}`
+                      : "Не указан",
                 },
-
-                // Telegram ID
-                {
-                  field_id:
-                    FIELD_TELEGRAM_ID,
-
-                  values: [
-                    {
-                      value: String(
-                        data.telegram_id
-                      ),
-                    },
-                  ],
-                },
-
-                // Телефон
-                ...(data.phone
-                  ? [
-                      {
-                        field_code:
-                          "PHONE",
-
-                        values: [
-                          {
-                            value:
-                              data.phone,
-                          },
-                        ],
-                      },
-                    ]
-                  : []),
               ],
             },
-          ]),
-        }
-      );
+
+            // Telegram ID
+            {
+              field_id:
+                FIELD_TELEGRAM_ID,
+
+              values: [
+                {
+                  value: String(
+                    data.telegram_id
+                  ),
+                },
+              ],
+            },
+
+            // Телефон
+            ...(data.phone
+              ? [
+                  {
+                    field_code:
+                      "PHONE",
+
+                    values: [
+                      {
+                        value:
+                          data.phone,
+                      },
+                    ],
+                  },
+                ]
+              : []),
+          ],
+        },
+      ];
+
+      const contactResponse =
+        await fetch(
+          `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/contacts`,
+          {
+            method: "POST",
+
+            headers: {
+              Authorization:
+                `Bearer ${process.env.AMO_ACCESS_TOKEN}`,
+
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify(
+              contactPayload
+            ),
+          }
+        );
 
       const contactText =
         await contactResponse.text();
@@ -246,7 +287,8 @@ async function createAmoLead(data) {
         JSON.parse(contactText);
 
       contactId =
-        contactData._embedded.contacts[0].id;
+        contactData._embedded
+          .contacts[0].id;
 
       console.log(
         "NEW CONTACT:",
@@ -256,115 +298,132 @@ async function createAmoLead(data) {
     }
 
     // =========================
-    // СОЗДАНИЕ СДЕЛКИ
+    // ДАТЫ
     // =========================
 
-    const leadResponse = await fetch(
-      `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/leads`,
+    const today =
+      new Date()
+        .toISOString()
+        .split("T")[0];
+
+    const trialEnd =
+      new Date(
+        Date.now() +
+          14 *
+            24 *
+            60 *
+            60 *
+            1000
+      )
+        .toISOString()
+        .split("T")[0];
+
+    // =========================
+    // СОЗДАЕМ СДЕЛКУ
+    // =========================
+
+    const leadPayload = [
       {
-        method: "POST",
+        name:
+          `${data.type === "trial"
+            ? "TRIAL"
+            : "ПОКУПКА"} - ${data.domain}`,
 
-        headers: {
-          Authorization: `Bearer ${process.env.AMO_ACCESS_TOKEN}`,
-          "Content-Type": "application/json",
-        },
+        pipeline_id:
+          AMO_PIPELINE_ID,
 
-        body: JSON.stringify([
+        status_id:
+          AMO_STATUS_ID,
+
+        price: 0,
+
+        custom_fields_values: [
+
+          // Домен
           {
-            name:
-              `${data.type === "trial"
-                ? "TRIAL"
-                : "ПОКУПКА"} - ${data.domain}`,
+            field_id:
+              FIELD_DOMAIN,
 
-            pipeline_id:
-              AMO_PIPELINE_ID,
-
-            status_id:
-              AMO_STATUS_ID,
-
-            price: 0,
-
-            custom_fields_values: [
-
-              // Домен
+            values: [
               {
-                field_id:
-                  FIELD_DOMAIN,
-
-                values: [
-                  {
-                    value:
-                      data.domain,
-                  },
-                ],
+                value:
+                  data.domain,
               },
-
-              // Тариф
-              {
-                field_id:
-                  FIELD_TARIFF,
-
-                values: [
-                  {
-                    value:
-                      data.tariff,
-                  },
-                ],
-              },
-
-              // Дата
-              {
-                field_id:
-                  FIELD_PURCHASE_DATE,
-
-                values: [
-                  {
-                    value:
-                      new Date()
-                        .toISOString()
-                        .split("T")[0],
-                  },
-                ],
-              },
-
-              // Trial end
-              ...(data.type === "trial"
-                ? [
-                    {
-                      field_id:
-                        FIELD_TRIAL_END,
-
-                      values: [
-                        {
-                          value:
-                            new Date(
-                              Date.now() +
-                                14 *
-                                  24 *
-                                  60 *
-                                  60 *
-                                  1000
-                            )
-                              .toISOString()
-                              .split("T")[0],
-                        },
-                      ],
-                    },
-                  ]
-                : []),
             ],
-
-            _embedded: {
-              contacts: [
-                {
-                  id: contactId,
-                },
-              ],
-            },
           },
-        ]),
-      }
-    );
+
+          // Тариф
+          {
+            field_id:
+              FIELD_TARIFF,
+
+            values: [
+              {
+                value:
+                  data.tariff,
+              },
+            ],
+          },
+
+          // Дата
+          {
+            field_id:
+              FIELD_PURCHASE_DATE,
+
+            values: [
+              {
+                value: today,
+              },
+            ],
+          },
+
+          // Trial end
+          ...(data.type === "trial"
+            ? [
+                {
+                  field_id:
+                    FIELD_TRIAL_END,
+
+                  values: [
+                    {
+                      value:
+                        trialEnd,
+                    },
+                  ],
+                },
+              ]
+            : []),
+        ],
+
+        _embedded: {
+          contacts: [
+            {
+              id: contactId,
+            },
+          ],
+        },
+      },
+    ];
+
+    const leadResponse =
+      await fetch(
+        `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/leads`,
+        {
+          method: "POST",
+
+          headers: {
+            Authorization:
+              `Bearer ${process.env.AMO_ACCESS_TOKEN}`,
+
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify(
+            leadPayload
+          ),
+        }
+      );
 
     const leadText =
       await leadResponse.text();
@@ -386,21 +445,8 @@ async function createAmoLead(data) {
     const leadData =
       JSON.parse(leadText);
 
-    if (
-      !leadData._embedded ||
-      !leadData._embedded.leads ||
-      !leadData._embedded.leads.length
-    ) {
-
-      console.log(
-        "LEAD CREATE ERROR"
-      );
-
-      return null;
-
-    }
-
-    return leadData._embedded.leads[0].id;
+    return leadData._embedded
+      .leads[0].id;
 
   } catch (error) {
 
@@ -782,6 +828,14 @@ ${domain}
         phone:
           userData.phone,
       });
+      
+      if (!leadId) {
+
+  return ctx.reply(
+`❌ Ошибка создания сделки в amoCRM`
+  );
+
+}
 
     let payment;
 
