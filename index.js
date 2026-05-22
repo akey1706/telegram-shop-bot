@@ -126,6 +126,9 @@ async function createAmoLead(data) {
           {
             name: `${data.type === "trial" ? "TRIAL" : "ПОКУПКА"} - ${data.domain}`,
 
+              pipeline_id: 10931642,
+              status_id: 85963450,
+
             _embedded: {
               contacts: [
                 {
