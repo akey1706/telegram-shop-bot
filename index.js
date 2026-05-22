@@ -65,7 +65,105 @@ const PRICES = {
 // =========================
 
 const userSelections = {};
+// =========================
+// AMOCRM
+// =========================
 
+async function createAmoLead(data) {
+
+  try {
+
+    // 1. Создаем контакт
+    const contactResponse = await fetch(
+      `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/contacts`,
+      {
+        method: "POST",
+
+        headers: {
+          Authorization: `Bearer ${process.env.AMO_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify([
+          {
+            name: data.name,
+
+            custom_fields_values: [
+              {
+                field_name: "Telegram ID",
+
+                values: [
+                  {
+                    value: String(data.telegram_id),
+                  },
+                ],
+              },
+            ],
+          },
+        ]),
+      }
+    );
+
+    const contactData = await contactResponse.json();
+
+    const contactId = contactData._embedded.contacts[0].id;
+
+    // 2. Создаем сделку
+    await fetch(
+      `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/leads`,
+      {
+        method: "POST",
+
+        headers: {
+          Authorization: `Bearer ${process.env.AMO_ACCESS_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify([
+          {
+            name: `${data.type === "trial" ? "TRIAL" : "ПОКУПКА"} - ${data.domain}`,
+
+            _embedded: {
+              contacts: [
+                {
+                  id: contactId,
+                },
+              ],
+            },
+
+            custom_fields_values: [
+              {
+                field_name: "Домен",
+
+                values: [
+                  {
+                    value: data.domain,
+                  },
+                ],
+              },
+
+              {
+                field_name: "Тариф",
+
+                values: [
+                  {
+                    value: data.tariff,
+                  },
+                ],
+              },
+            ],
+          },
+        ]),
+      }
+    );
+
+  } catch (error) {
+
+    console.log("AMO ERROR:", error);
+
+  }
+
+}
 // =========================
 // MENU COMMANDS
 // =========================
@@ -288,38 +386,40 @@ company.amocrm.ru`
       );
 
       // Albato webhook
-      await fetch(ALBATO_WEBHOOK, {
-        method: "POST",
+      // Albato webhook
+await fetch(ALBATO_WEBHOOK, {
+  method: "POST",
 
-        headers: {
-          "Content-Type": "application/json",
-        },
+  headers: {
+    "Content-Type": "application/json",
+  },
 
-        body: JSON.stringify({
-          type: "trial",
+  body: JSON.stringify({
+    type: "trial",
+    domain: domain,
+    tariff: "trial",
+    telegram_id: ctx.from.id,
+    username: ctx.from.username,
+    first_name: ctx.from.first_name,
+  }),
+});
 
-          domain: domain,
+// amoCRM
+await createAmoLead({
+  type: "trial",
+  domain,
+  tariff: "trial",
+  telegram_id: ctx.from.id,
+  name: ctx.from.first_name,
+});
 
-          tariff: "trial",
-
-          telegram_id: ctx.from.id,
-
-          username: ctx.from.username,
-
-          first_name: ctx.from.first_name,
-        }),
-
-      });
-
-      return ctx.reply(
+return ctx.reply(
 `✅ Ваш trial для домена:
 
 ${domain}
 
 будет активирован в ближайшее время.`
-      );
-
-    }
+);
 
     // =========================
     // BUY
@@ -389,48 +489,32 @@ ${tariff.label}`
     );
 
     // Albato webhook
-    await fetch(ALBATO_WEBHOOK, {
-      method: "POST",
+    // Albato webhook
+await fetch(ALBATO_WEBHOOK, {
+  method: "POST",
 
-      headers: {
-        "Content-Type": "application/json",
-      },
+  headers: {
+    "Content-Type": "application/json",
+  },
 
-      body: JSON.stringify({
-        type: "buy",
+  body: JSON.stringify({
+    type: "buy",
+    domain: domain,
+    tariff: tariff.label,
+    telegram_id: ctx.from.id,
+    username: ctx.from.username,
+    first_name: ctx.from.first_name,
+  }),
+});
 
-        domain: domain,
-
-        tariff: tariff.label,
-
-        telegram_id: ctx.from.id,
-
-        username: ctx.from.username,
-
-        first_name: ctx.from.first_name,
-      }),
-
-    });
-
-    return ctx.reply(
-`✅ Домен сохранён: ${domain}
-
-💳 Для оплаты нажмите кнопку ниже`,
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: "💰 Оплатить",
-                url: paymentLink,
-              },
-            ],
-          ],
-        },
-      }
-    );
-
-  }
+// amoCRM
+await createAmoLead({
+  type: "buy",
+  domain,
+  tariff: tariff.label,
+  telegram_id: ctx.from.id,
+  name: ctx.from.first_name,
+});
 
   // =========================
   // ОБЫЧНЫЕ СООБЩЕНИЯ
