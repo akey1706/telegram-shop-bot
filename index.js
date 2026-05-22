@@ -36,6 +36,18 @@ const BANNER_URL =
 const ADMIN_ID = 1387488821;
 
 // =========================
+// AMOCRM
+// =========================
+
+const AMO_PIPELINE_ID = 10931642;
+const AMO_STATUS_ID = 85963450;
+
+// ID полей
+const FIELD_DOMAIN = 854933;
+const FIELD_TARIFF = 854927;
+const FIELD_TELEGRAM_ID = 857115;
+
+// =========================
 // ТАРИФЫ
 // =========================
 
@@ -67,9 +79,7 @@ const userSelections = {};
 // =========================
 
 async function createAmoLead(data) {
-
   try {
-
     console.log("=== CREATE AMO LEAD ===");
     console.log(data);
 
@@ -90,6 +100,18 @@ async function createAmoLead(data) {
         body: JSON.stringify([
           {
             name: data.name || "Telegram User",
+
+            custom_fields_values: [
+              {
+                field_id: FIELD_TELEGRAM_ID,
+
+                values: [
+                  {
+                    value: String(data.telegram_id),
+                  },
+                ],
+              },
+            ],
           },
         ]),
       }
@@ -132,7 +154,32 @@ async function createAmoLead(data) {
                 ? "TRIAL"
                 : "ПОКУПКА"} - ${data.domain}`,
 
+            pipeline_id: AMO_PIPELINE_ID,
+            status_id: AMO_STATUS_ID,
+
             price: 0,
+
+            custom_fields_values: [
+              {
+                field_id: FIELD_DOMAIN,
+
+                values: [
+                  {
+                    value: data.domain,
+                  },
+                ],
+              },
+
+              {
+                field_id: FIELD_TARIFF,
+
+                values: [
+                  {
+                    value: data.tariff,
+                  },
+                ],
+              },
+            ],
 
             _embedded: {
               contacts: [
@@ -152,12 +199,9 @@ async function createAmoLead(data) {
     console.log("LEAD RESPONSE:", leadText);
 
   } catch (error) {
-
     console.log("AMO ERROR:");
     console.log(error);
-
   }
-
 }
 
 // =========================
