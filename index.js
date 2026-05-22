@@ -35,10 +35,6 @@ const BANNER_URL =
 
 const ADMIN_ID = 1387488821;
 
-// Webhook Albato
-const ALBATO_WEBHOOK =
-  "https://h.albato.ru/wh/38/1lfdb3f/0n1CVMbvadYQAsKvEx5ZoF1KGvNgdSDEtznWLZBxWu4/";
-
 // =========================
 // ТАРИФЫ
 // =========================
@@ -65,6 +61,7 @@ const PRICES = {
 // =========================
 
 const userSelections = {};
+
 // =========================
 // AMOCRM
 // =========================
@@ -73,7 +70,10 @@ async function createAmoLead(data) {
 
   try {
 
-    // 1. Создаем контакт
+    // =========================
+    // СОЗДАНИЕ КОНТАКТА
+    // =========================
+
     const contactResponse = await fetch(
       `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/contacts`,
       {
@@ -108,7 +108,10 @@ async function createAmoLead(data) {
 
     const contactId = contactData._embedded.contacts[0].id;
 
-    // 2. Создаем сделку
+    // =========================
+    // СОЗДАНИЕ СДЕЛКИ
+    // =========================
+
     await fetch(
       `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/leads`,
       {
@@ -159,11 +162,13 @@ async function createAmoLead(data) {
 
   } catch (error) {
 
-    console.log("AMO ERROR:", error);
+    console.log("AMO ERROR:");
+    console.log(error);
 
   }
 
 }
+
 // =========================
 // MENU COMMANDS
 // =========================
@@ -373,7 +378,7 @@ company.amocrm.ru`
 
     if (userData.period === "trial") {
 
-      // Telegram уведомление
+      // Уведомление тебе
       await bot.telegram.sendMessage(
         ADMIN_ID,
 
@@ -385,41 +390,24 @@ company.amocrm.ru`
 🌐 ${domain}`
       );
 
-      // Albato webhook
-      // Albato webhook
-await fetch(ALBATO_WEBHOOK, {
-  method: "POST",
+      // amoCRM
+      await createAmoLead({
+        type: "trial",
+        domain,
+        tariff: "trial",
+        telegram_id: ctx.from.id,
+        name: ctx.from.first_name,
+      });
 
-  headers: {
-    "Content-Type": "application/json",
-  },
-
-  body: JSON.stringify({
-    type: "trial",
-    domain: domain,
-    tariff: "trial",
-    telegram_id: ctx.from.id,
-    username: ctx.from.username,
-    first_name: ctx.from.first_name,
-  }),
-});
-
-// amoCRM
-await createAmoLead({
-  type: "trial",
-  domain,
-  tariff: "trial",
-  telegram_id: ctx.from.id,
-  name: ctx.from.first_name,
-});
-
-return ctx.reply(
+      return ctx.reply(
 `✅ Ваш trial для домена:
 
 ${domain}
 
 будет активирован в ближайшее время.`
-);
+      );
+
+    }
 
     // =========================
     // BUY
@@ -473,7 +461,7 @@ ${domain}
 
     const paymentLink = payment.confirmation.confirmation_url;
 
-    // Telegram уведомление
+    // Уведомление тебе
     await bot.telegram.sendMessage(
       ADMIN_ID,
 
@@ -488,33 +476,34 @@ ${domain}
 ${tariff.label}`
     );
 
-    // Albato webhook
-    // Albato webhook
-await fetch(ALBATO_WEBHOOK, {
-  method: "POST",
+    // amoCRM
+    await createAmoLead({
+      type: "buy",
+      domain,
+      tariff: tariff.label,
+      telegram_id: ctx.from.id,
+      name: ctx.from.first_name,
+    });
 
-  headers: {
-    "Content-Type": "application/json",
-  },
+    return ctx.reply(
+`✅ Домен сохранён: ${domain}
 
-  body: JSON.stringify({
-    type: "buy",
-    domain: domain,
-    tariff: tariff.label,
-    telegram_id: ctx.from.id,
-    username: ctx.from.username,
-    first_name: ctx.from.first_name,
-  }),
-});
+💳 Для оплаты нажмите кнопку ниже`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "💰 Оплатить",
+                url: paymentLink,
+              },
+            ],
+          ],
+        },
+      }
+    );
 
-// amoCRM
-await createAmoLead({
-  type: "buy",
-  domain,
-  tariff: tariff.label,
-  telegram_id: ctx.from.id,
-  name: ctx.from.first_name,
-});
+  }
 
   // =========================
   // ОБЫЧНЫЕ СООБЩЕНИЯ
