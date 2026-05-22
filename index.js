@@ -79,7 +79,9 @@ const userSelections = {};
 // =========================
 
 async function createAmoLead(data) {
+
   try {
+
     console.log("=== CREATE AMO LEAD ===");
     console.log(data);
 
@@ -102,15 +104,42 @@ async function createAmoLead(data) {
             name: data.name || "Telegram User",
 
             custom_fields_values: [
-              {
-                field_id: FIELD_TELEGRAM_ID,
 
+              // Telegram username
+              {
+                field_id: 855013,
+                values: [
+                  {
+                    value: data.username
+                      ? `@${data.username}`
+                      : "Не указан",
+                  },
+                ],
+              },
+
+              // Telegram ID
+              {
+                field_id: 857115,
                 values: [
                   {
                     value: String(data.telegram_id),
                   },
                 ],
               },
+
+              // Телефон
+              ...(data.phone
+                ? [
+                    {
+                      field_code: "PHONE",
+                      values: [
+                        {
+                          value: data.phone,
+                        },
+                      ],
+                    },
+                  ]
+                : []),
             ],
           },
         ]),
@@ -199,9 +228,12 @@ async function createAmoLead(data) {
     console.log("LEAD RESPONSE:", leadText);
 
   } catch (error) {
+
     console.log("AMO ERROR:");
     console.log(error);
+
   }
+
 }
 
 // =========================
@@ -334,17 +366,28 @@ bot.action(/period_(.+)/, async (ctx) => {
   const period = ctx.match[1];
 
   userSelections[ctx.from.id] = {
-    waitingDomain: true,
+    waitingPhone: true,
     period,
   };
 
   await ctx.answerCbQuery();
 
   await ctx.reply(
-`🌐 Введите ваш домен amoCRM
-
-Введите в формате:
-company.amocrm.ru`
+`📱 Сначала отправьте номер телефона`,
+    {
+      reply_markup: {
+        keyboard: [
+          [
+            {
+              text: "📞 Поделиться номером",
+              request_contact: true,
+            },
+          ],
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: true,
+      },
+    }
   );
 
 });
@@ -358,15 +401,59 @@ bot.action("trial", async (ctx) => {
   await ctx.answerCbQuery();
 
   userSelections[ctx.from.id] = {
-    waitingDomain: true,
+    waitingPhone: true,
     period: "trial",
   };
 
   await ctx.reply(
-`🧪 Для получения trial введите ваш домен amoCRM
+`📱 Сначала отправьте номер телефона`,
+    {
+      reply_markup: {
+        keyboard: [
+          [
+            {
+              text: "📞 Поделиться номером",
+              request_contact: true,
+            },
+          ],
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: true,
+      },
+    }
+  );
+
+});
+
+// =========================
+// CONTACT
+// =========================
+
+bot.on("contact", async (ctx) => {
+
+  const userData = userSelections[ctx.from.id];
+
+  if (!userData || !userData.waitingPhone) {
+    return;
+  }
+
+  userSelections[ctx.from.id].waitingPhone = false;
+
+  userSelections[ctx.from.id].waitingDomain = true;
+
+  userSelections[ctx.from.id].phone =
+    ctx.message.contact.phone_number;
+
+  await ctx.reply(
+`🌐 Теперь введите ваш домен amoCRM
 
 Введите в формате:
-company.amocrm.ru`
+company.amocrm.ru`,
+    {
+      reply_markup: {
+        remove_keyboard: true,
+      },
+    }
   );
 
 });
@@ -426,13 +513,15 @@ company.amocrm.ru`
       );
 
       // amoCRM
-      await createAmoLead({
-        type: "trial",
-        domain,
-        tariff: "trial",
-        telegram_id: ctx.from.id,
-        name: ctx.from.first_name,
-      });
+ await createAmoLead({
+  type: "trial",
+  domain,
+  tariff: "trial",
+  telegram_id: ctx.from.id,
+  name: ctx.from.first_name,
+  username: ctx.from.username,
+  phone: userData.phone,
+});
 
       return ctx.reply(
 `✅ Ваш trial для домена:
@@ -512,13 +601,15 @@ ${tariff.label}`
     );
 
     // amoCRM
-    await createAmoLead({
-      type: "buy",
-      domain,
-      tariff: tariff.label,
-      telegram_id: ctx.from.id,
-      name: ctx.from.first_name,
-    });
+  await createAmoLead({
+  type: "buy",
+  domain,
+  tariff: tariff.label,
+  telegram_id: ctx.from.id,
+  name: ctx.from.first_name,
+  username: ctx.from.username,
+  phone: userData.phone,
+});
 
     return ctx.reply(
 `✅ Домен сохранён: ${domain}
