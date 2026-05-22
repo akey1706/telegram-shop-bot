@@ -85,82 +85,140 @@ async function createAmoLead(data) {
     console.log("=== CREATE AMO LEAD ===");
     console.log(data);
 
+    let contactId = null;
+
     // =========================
-    // СОЗДАЕМ КОНТАКТ
+    // ИЩЕМ КОНТАКТ ПО TELEGRAM ID
     // =========================
 
-    const contactResponse = await fetch(
-      `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/contacts`,
+    const searchResponse = await fetch(
+      `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/contacts?query=${data.telegram_id}`,
       {
-        method: "POST",
+        method: "GET",
 
         headers: {
           Authorization: `Bearer ${process.env.AMO_ACCESS_TOKEN}`,
           "Content-Type": "application/json",
         },
-
-        body: JSON.stringify([
-          {
-            name: data.name || "Telegram User",
-
-            custom_fields_values: [
-
-              // Telegram username
-              {
-                field_id: 855013,
-                values: [
-                  {
-                    value: data.username
-                      ? `@${data.username}`
-                      : "Не указан",
-                  },
-                ],
-              },
-
-              // Telegram ID
-              {
-                field_id: 857115,
-                values: [
-                  {
-                    value: String(data.telegram_id),
-                  },
-                ],
-              },
-
-              // Телефон
-              ...(data.phone
-                ? [
-                    {
-                      field_code: "PHONE",
-                      values: [
-                        {
-                          value: data.phone,
-                        },
-                      ],
-                    },
-                  ]
-                : []),
-            ],
-          },
-        ]),
       }
     );
 
-    const contactText = await contactResponse.text();
+    const searchText = await searchResponse.text();
 
-    console.log("CONTACT STATUS:", contactResponse.status);
-    console.log("CONTACT RESPONSE:", contactText);
+    console.log("SEARCH STATUS:", searchResponse.status);
+    console.log("SEARCH RESPONSE:", searchText);
 
-    if (!contactResponse.ok) {
-      return;
+    if (searchResponse.ok) {
+
+      const searchData = JSON.parse(searchText);
+
+      if (
+        searchData._embedded &&
+        searchData._embedded.contacts &&
+        searchData._embedded.contacts.length > 0
+      ) {
+
+        contactId =
+          searchData._embedded.contacts[0].id;
+
+        console.log("FOUND CONTACT:", contactId);
+
+      }
+
     }
 
-    const contactData = JSON.parse(contactText);
+    // =========================
+    // ЕСЛИ КОНТАКТ НЕ НАЙДЕН
+    // СОЗДАЕМ НОВЫЙ
+    // =========================
 
-    const contactId =
-      contactData._embedded.contacts[0].id;
+    if (!contactId) {
 
-    console.log("CONTACT ID:", contactId);
+      console.log("CONTACT NOT FOUND. CREATING NEW");
+
+      const contactResponse = await fetch(
+        `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/contacts`,
+        {
+          method: "POST",
+
+          headers: {
+            Authorization: `Bearer ${process.env.AMO_ACCESS_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify([
+            {
+              name: data.name || "Telegram User",
+
+              custom_fields_values: [
+
+                // Telegram username
+                {
+                  field_id: 855013,
+                  values: [
+                    {
+                      value: data.username
+                        ? `@${data.username}`
+                        : "Не указан",
+                    },
+                  ],
+                },
+
+                // Telegram ID
+                {
+                  field_id: 857115,
+                  values: [
+                    {
+                      value: String(data.telegram_id),
+                    },
+                  ],
+                },
+
+                // Телефон
+                ...(data.phone
+                  ? [
+                      {
+                        field_code: "PHONE",
+                        values: [
+                          {
+                            value: data.phone,
+                          },
+                        ],
+                      },
+                    ]
+                  : []),
+              ],
+            },
+          ]),
+        }
+      );
+
+      const contactText =
+        await contactResponse.text();
+
+      console.log(
+        "CONTACT STATUS:",
+        contactResponse.status
+      );
+
+      console.log(
+        "CONTACT RESPONSE:",
+        contactText
+      );
+
+      if (!contactResponse.ok) {
+        return;
+      }
+
+      const contactData =
+        JSON.parse(contactText);
+
+      contactId =
+        contactData._embedded.contacts[0].id;
+
+      console.log("NEW CONTACT:", contactId);
+
+    }
 
     // =========================
     // СОЗДАЕМ СДЕЛКУ
