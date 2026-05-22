@@ -70,8 +70,11 @@ async function createAmoLead(data) {
 
   try {
 
+    console.log("=== CREATE AMO LEAD ===");
+    console.log(data);
+
     // =========================
-    // СОЗДАНИЕ КОНТАКТА
+    // СОЗДАЕМ КОНТАКТ
     // =========================
 
     const contactResponse = await fetch(
@@ -86,33 +89,33 @@ async function createAmoLead(data) {
 
         body: JSON.stringify([
           {
-            name: data.name,
-
-            custom_fields_values: [
-              {
-                field_name: "Telegram ID",
-
-                values: [
-                  {
-                    value: String(data.telegram_id),
-                  },
-                ],
-              },
-            ],
+            name: data.name || "Telegram User",
           },
         ]),
       }
     );
 
-    const contactData = await contactResponse.json();
+    const contactText = await contactResponse.text();
 
-    const contactId = contactData._embedded.contacts[0].id;
+    console.log("CONTACT STATUS:", contactResponse.status);
+    console.log("CONTACT RESPONSE:", contactText);
+
+    if (!contactResponse.ok) {
+      return;
+    }
+
+    const contactData = JSON.parse(contactText);
+
+    const contactId =
+      contactData._embedded.contacts[0].id;
+
+    console.log("CONTACT ID:", contactId);
 
     // =========================
-    // СОЗДАНИЕ СДЕЛКИ
+    // СОЗДАЕМ СДЕЛКУ
     // =========================
 
-    await fetch(
+    const leadResponse = await fetch(
       `https://${process.env.AMO_DOMAIN}.amocrm.ru/api/v4/leads`,
       {
         method: "POST",
@@ -124,10 +127,12 @@ async function createAmoLead(data) {
 
         body: JSON.stringify([
           {
-            name: `${data.type === "trial" ? "TRIAL" : "ПОКУПКА"} - ${data.domain}`,
+            name:
+              `${data.type === "trial"
+                ? "TRIAL"
+                : "ПОКУПКА"} - ${data.domain}`,
 
-              pipeline_id: 10931642,
-              status_id: 85963450,
+            price: 0,
 
             _embedded: {
               contacts: [
@@ -136,32 +141,15 @@ async function createAmoLead(data) {
                 },
               ],
             },
-
-            custom_fields_values: [
-              {
-                field_name: "Домен",
-
-                values: [
-                  {
-                    value: data.domain,
-                  },
-                ],
-              },
-
-              {
-                field_name: "Тариф",
-
-                values: [
-                  {
-                    value: data.tariff,
-                  },
-                ],
-              },
-            ],
           },
         ]),
       }
     );
+
+    const leadText = await leadResponse.text();
+
+    console.log("LEAD STATUS:", leadResponse.status);
+    console.log("LEAD RESPONSE:", leadText);
 
   } catch (error) {
 
